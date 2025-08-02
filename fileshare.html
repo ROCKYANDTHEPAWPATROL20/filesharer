@@ -174,10 +174,12 @@
                 if (peer) {
                     peer.destroy();
                 }
+                // FIX: Using a more reliable, community-hosted public PeerJS server
                 peer = new Peer(peerId, {
-                    host: 'peerjs-server.herokuapp.com',
+                    host: '0.peerjs.com',
+                    port: 443,
+                    path: '/',
                     secure: true,
-                    port: 443
                 });
 
                 peer.on('open', id => {
@@ -194,14 +196,13 @@
                     }
                 });
                 
-                // FIX: Add handlers for disconnection and reconnection
                 peer.on('disconnected', () => {
                     const msg = 'Connection to server lost. Attempting to reconnect...';
                     console.log(msg);
                     statusSender.textContent = msg;
                     statusReceiver.textContent = msg;
+                    // FIX: Check if peer is destroyed before trying to reconnect.
                     if (!peer.destroyed) {
-                        // Use a timeout to prevent frantic reconnection attempts
                         setTimeout(() => peer.reconnect(), 3000);
                     }
                 });
@@ -215,13 +216,13 @@
                     console.error('PeerJS error:', err);
                     // FIX: Provide more specific error messages
                     if (err.type === 'peer-unavailable') {
-                        statusReceiver.textContent = 'Could not find peer. Please check the room name and that the sender is still active.';
+                        statusReceiver.textContent = 'Could not find peer. Check the room name and that the sender is active.';
                     } else if (err.type === 'network') {
-                        statusSender.textContent = 'Network error. Please check your connection.';
-                        statusReceiver.textContent = 'Network error. Please check your connection.';
+                        statusSender.textContent = 'Network error. Check your connection.';
+                        statusReceiver.textContent = 'Network error. Check your connection.';
                     } else {
-                        statusSender.textContent = `Error: ${err.type}. Please try again.`;
-                        statusReceiver.textContent = `Error: ${err.type}. Please try again.`;
+                        statusSender.textContent = `Error: ${err.type}. Please start over.`;
+                        statusReceiver.textContent = `Error: ${err.type}. Please start over.`;
                     }
                 });
             }
@@ -241,22 +242,24 @@
             });
 
             copyRoomNameBtn.addEventListener('click', () => {
-                // Use a fallback for browsers that don't support navigator.clipboard in insecure contexts
-                try {
-                    navigator.clipboard.writeText(roomNameDisplay.textContent).then(() => {
-                        alert('Room name copied to clipboard!');
+                const roomName = roomNameDisplay.textContent;
+                // FIX: Use a robust copy-to-clipboard method
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(roomName).then(() => {
+                        alert('Room name copied!');
                     });
-                } catch (err) {
+                } else {
+                    // Fallback for older browsers or insecure contexts
                     const textArea = document.createElement("textarea");
-                    textArea.value = roomNameDisplay.textContent;
+                    textArea.value = roomName;
+                    textArea.style.position = "absolute";
+                    textArea.style.left = "-9999px";
                     document.body.appendChild(textArea);
-                    textArea.focus();
                     textArea.select();
                     try {
                         document.execCommand('copy');
-                        alert('Room name copied to clipboard!');
+                        alert('Room name copied!');
                     } catch (err) {
-                        console.error('Fallback copy failed: ', err);
                         alert('Could not copy room name.');
                     }
                     document.body.removeChild(textArea);
@@ -296,7 +299,7 @@
                             }
                         } catch (e) {
                             console.error("Failed to send chunk:", e);
-                            statusSender.textContent = 'Connection lost during transfer. Please start over.';
+                            statusSender.textContent = 'Connection lost. Please start over.';
                             resetToInitialView();
                         }
                     } else {
@@ -315,6 +318,7 @@
 
             // --- Receiver Logic ---
             connectBtn.addEventListener('click', () => {
+                // FIX: Sanitize input to be lowercase
                 const roomName = roomNameInput.value.trim().toLowerCase();
                 if (!roomName) {
                     statusReceiver.textContent = 'Please enter a room name.';
@@ -325,7 +329,6 @@
                 
                 initializePeer(); // Initialize with a random ID
                 
-                // Wait for peer to be ready before connecting
                 const connectInterval = setInterval(() => {
                     if (peer && peer.open) {
                         clearInterval(connectInterval);
@@ -340,7 +343,7 @@
                         });
                          conn.on('error', (err) => {
                             console.error('Connection error:', err);
-                            statusReceiver.textContent = 'Failed to connect. Check the room name and try again.';
+                            statusReceiver.textContent = 'Failed to connect. Check room name and try again.';
                         });
                     }
                 }, 500);
