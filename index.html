@@ -79,10 +79,9 @@
             </div>
             <div id="progress-text" class="text-center text-sm text-gray-400 mb-4"></div>
 
-            <div id="download-link-container" class="hidden text-center">
-                <a id="download-link" class="w-full inline-block bg-teal-600 hover:bg-teal-700 text-white font-bold py-3 px-4 rounded-lg text-center cursor-pointer transition-colors">
-                    Download File
-                </a>
+            <!-- This link is now hidden and clicked programmatically -->
+            <div id="download-link-container" class="hidden">
+                <a id="download-link"></a>
             </div>
             <button id="receiver-start-over" class="hidden mt-4 w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-colors">Start Over</button>
         </div>
@@ -174,7 +173,6 @@
                 if (peer) {
                     peer.destroy();
                 }
-                // FIX: Using a more reliable, community-hosted public PeerJS server
                 peer = new Peer(peerId, {
                     host: '0.peerjs.com',
                     port: 443,
@@ -201,7 +199,6 @@
                     console.log(msg);
                     statusSender.textContent = msg;
                     statusReceiver.textContent = msg;
-                    // FIX: Check if peer is destroyed before trying to reconnect.
                     if (!peer.destroyed) {
                         setTimeout(() => peer.reconnect(), 3000);
                     }
@@ -214,7 +211,6 @@
                 
                 peer.on('error', err => {
                     console.error('PeerJS error:', err);
-                    // FIX: Provide more specific error messages
                     if (err.type === 'peer-unavailable') {
                         statusReceiver.textContent = 'Could not find peer. Check the room name and that the sender is active.';
                     } else if (err.type === 'network') {
@@ -243,13 +239,11 @@
 
             copyRoomNameBtn.addEventListener('click', () => {
                 const roomName = roomNameDisplay.textContent;
-                // FIX: Use a robust copy-to-clipboard method
                 if (navigator.clipboard && window.isSecureContext) {
                     navigator.clipboard.writeText(roomName).then(() => {
                         alert('Room name copied!');
                     });
                 } else {
-                    // Fallback for older browsers or insecure contexts
                     const textArea = document.createElement("textarea");
                     textArea.value = roomName;
                     textArea.style.position = "absolute";
@@ -318,7 +312,6 @@
 
             // --- Receiver Logic ---
             connectBtn.addEventListener('click', () => {
-                // FIX: Sanitize input to be lowercase
                 const roomName = roomNameInput.value.trim().toLowerCase();
                 if (!roomName) {
                     statusReceiver.textContent = 'Please enter a room name.';
@@ -377,9 +370,15 @@
                 const url = URL.createObjectURL(fileBlob);
                 downloadLink.href = url;
                 downloadLink.download = fileMetadata.name;
-                downloadLinkContainer.classList.remove('hidden');
-                statusReceiver.textContent = 'File received successfully!';
+                
+                // Automatically click the link to trigger the download dialog
+                downloadLink.click();
+                
+                statusReceiver.textContent = 'File received! Check your downloads.';
                 progressText.textContent = `Complete!`;
+
+                // Clean up the object URL to free memory
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
             }
 
             function formatBytes(bytes, decimals = 2) {
